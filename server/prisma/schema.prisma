@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum support in Prisma, so role/status/payment
+// fields below are plain Strings constrained by Zod at the API layer.
+// Allowed values:
+//   User.role            -> ADMIN | MANAGER | CASHIER
+//   Sale.paymentMethod   -> CASH | CARD | MOBILE | STORE_CREDIT
+//   Sale.status          -> COMPLETED | REFUNDED | VOID
+//   PurchaseOrder.status -> DRAFT | ORDERED | RECEIVED | CANCELLED
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("CASHIER")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sales           Sale[]
+  purchaseOrders  PurchaseOrder[]
+  stockAdjustments StockAdjustment[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  unit          String   @default("pcs")
+  costPrice     Float    @default(0)
+  sellingPrice  Float
+  taxRate       Float    @default(0)
+  stockQty      Int      @default(0)
+  reorderLevel  Int      @default(5)
+  imageUrl      String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  saleItems           SaleItem[]
+  purchaseOrderItems  PurchaseOrderItem[]
+  stockAdjustments    StockAdjustment[]
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  loyaltyPoints Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  sales Sale[]
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  invoiceNo     String   @unique
+  subtotal      Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  total         Float
+  amountPaid    Float    @default(0)
+  changeDue     Float    @default(0)
+  paymentMethod String   @default("CASH")
+  status        String   @default("COMPLETED")
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  items SaleItem[]
+}
+
+model SaleItem {
+  id        String @id @default(cuid())
+  qty       Int
+  price     Float
+  discount  Float  @default(0)
+  subtotal  Float
+
+  saleId String
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model PurchaseOrder {
+  id          String    @id @default(cuid())
+  poNumber    String    @unique
+  status      String    @default("DRAFT")
+  totalAmount Float     @default(0)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  receivedAt  DateTime?
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  items PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id        String @id @default(cuid())
+  qty       Int
+  costPrice Float
+  subtotal  Float
+
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model StockAdjustment {
+  id        String   @id @default(cuid())
+  qtyChange Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
