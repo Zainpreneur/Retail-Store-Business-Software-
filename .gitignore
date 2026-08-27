@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.env
+.env.local
+*.log
+.DS_Store
+
+# Prisma / SQLite
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Editor
+.vscode/
+.idea/
